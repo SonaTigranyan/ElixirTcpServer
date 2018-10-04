@@ -1,21 +1,14 @@
-# TcpServer
+Write a TCP server that receives messages from a client and writes back the client message.
 
-**TODO: Add description**
+Close the client connection whenever you receive the message “bye”.
 
-## Installation
+The server should print the client number (+1 at every new client) when the client connects.
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `tcp_server` to your list of dependencies in `mix.exs`:
+The server should log the client information (IP and port) to the console.
 
-```elixir
-def deps do
-  [
-    {:tcp_server, "~> 0.1.0"}
-  ]
-end
-```
+Make sure you use the application tree as well as GenServer.
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/tcp_server](https://hexdocs.pm/tcp_server).
+Write a function that returns all the current connections (peer IPs and ports)
+
+Write a function that when called closes all the connections.
 

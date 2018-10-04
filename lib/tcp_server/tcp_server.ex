@@ -34,6 +34,13 @@ defmodule TcpServer do
         %{state | active_conns: state.active_conns -- [client_socket]}
       }
     end 
+
+    def handle_call({:show_visitor_number}, _, state) do
+      {:reply,
+        state.visitor, 
+        state
+      }
+    end
   
     def do_listen(port) do
       case :gen_tcp.listen(port, [packet: 0, active: false]) do
@@ -48,7 +55,7 @@ defmodule TcpServer do
       case :gen_tcp.accept(listen_socket) do
         {:ok, client_socket} ->
           add_conns(client_socket)
-          show_ip(client_socket)
+          show_post_conn_info(client_socket)
           spawn(fn -> 
             do_recv(client_socket, 0)end)
           ##:sys.get_state(__MODULE__)
@@ -84,15 +91,21 @@ defmodule TcpServer do
       end
     end
 
-    def show_ip(client_socket) do
+    def show_post_conn_info(client_socket) do
       case :inet.peername(client_socket) do
         {:ok, {address, port}} ->
-          spawn( fn -> IO.inspect({address, port}) end)
+          spawn( fn -> IO.inspect({show_visitor_nummber(), address, port}) end)
         {:error, errno} ->
           Logger.error errno
       end
     end
   
+    def show_conns_info() do
+      :sys.get_state(__MODULE__)
+      |> Map.get(:active_conns) 
+      |> Enum.map(fn port -> :inet.peername(port) |> elem(1) end)
+    end
+
     def do_close(client_socket) do
       :gen_tcp.close(client_socket)
       remove_conns(client_socket)
@@ -111,6 +124,10 @@ defmodule TcpServer do
 
     def remove_conns(client_socket) do
       GenServer.cast(__MODULE__,{:remove_conn, client_socket})
+    end
+
+    def show_visitor_nummber() do
+      GenServer.call(__MODULE__, {:show_visitor_number})
     end
   end
   
