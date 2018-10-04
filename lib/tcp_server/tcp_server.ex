@@ -38,7 +38,7 @@ defmodule TcpServer do
     {:reply, state.visitor, state}
   end
 
-  def do_listen(port) do
+  defp do_listen(port) do
     case :gen_tcp.listen(port, packet: 0, active: false) do
       {:ok, listen_socket} ->
         {true, listen_socket}
@@ -48,7 +48,7 @@ defmodule TcpServer do
     end
   end
 
-  def loop_acceptor(listen_socket) do
+  defp loop_acceptor(listen_socket) do
     case :gen_tcp.accept(listen_socket) do
       {:ok, client_socket} ->
         add_conns(client_socket)
@@ -66,7 +66,7 @@ defmodule TcpServer do
     end
   end
 
-  def do_recv(client_socket, length) do
+  defp do_recv(client_socket, length) do
     case :gen_tcp.recv(client_socket, length) do
       {:ok, data} ->
         data_handler(client_socket, data)
@@ -79,7 +79,7 @@ defmodule TcpServer do
     end
   end
 
-  def data_handler(client_socket, data) do
+  defp data_handler(client_socket, data) do
     cond do
       data |> to_string |> String.trim() |> String.equivalent?("bye") ->
         do_close(client_socket)
@@ -89,7 +89,7 @@ defmodule TcpServer do
     end
   end
 
-  def do_send(client_socket, data) do
+  defp do_send(client_socket, data) do
     case :gen_tcp.send(client_socket, data) do
       :ok ->
         do_recv(client_socket, 0)
@@ -99,7 +99,7 @@ defmodule TcpServer do
     end
   end
 
-  def show_post_conn_info(client_socket) do
+  defp show_post_conn_info(client_socket) do
     case :inet.peername(client_socket) do
       {:ok, {address, port}} ->
         spawn(fn -> IO.inspect({show_visitor_nummber(), address, port}) end)
@@ -115,14 +115,15 @@ defmodule TcpServer do
     |> Enum.map(fn port -> :inet.peername(port) |> elem(1) end)
   end
 
-  def do_close(client_socket) do
+  defp do_close(client_socket) do
     :gen_tcp.close(client_socket)
     remove_conns(client_socket)
   end
 
   def close_conns() do
-    %{:active_conns => active_conns} = :sys.get_state(__MODULE__)
-    Enum.each(active_conns, fn conn -> do_close(conn) end)
+    :sys.get_state(__MODULE__)
+    |> Map.get(:active_conns)
+    |> Enum.each(fn conn -> do_close(conn) end)
   end
 
   # clinetAPI
