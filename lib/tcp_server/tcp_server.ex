@@ -3,7 +3,7 @@ defmodule TcpServer do
     require Logger
 
     defstruct(
-        active_conns: 0,
+        active_conns: [],
         visitor: 0
     )
     @type t :: %__MODULE__{active_conns: integer, visitor: integer}
@@ -22,12 +22,18 @@ defmodule TcpServer do
         {:ok, %__MODULE__{}}
     end
 
-    def handle_cast({:add_conn}, state) do
-        {:noreply,
-          %{state | visitor: state.visitor + 1, 
-          active_conns: state.active_conns + 1}
-        }
+    def handle_cast({:add_conn, client_socket}, state) do
+      {:noreply,
+        %{state | visitor: state.visitor + 1,  
+        active_conns: state.active_conns ++ [client_socket]}
+      }
     end
+    
+    def handle_cast({:remove_conn, client_socket}, state) do
+      {:noreply, 
+        %{state | active_conns: state.active_conns -- [client_socket]}
+      }
+    end 
   
     def do_listen(port) do
       case :gen_tcp.listen(port, [packet: 0, active: false]) do
@@ -41,9 +47,11 @@ defmodule TcpServer do
     def loop_acceptor(listen_socket) do
       case :gen_tcp.accept(listen_socket) do
         {:ok, client_socket} ->
-          add_conns()
-          spawn(fn -> do_recv(client_socket, 0) end)
-          spawn( fn -> IO.inspect(:sys.get_state(__MODULE__)) end)
+          add_conns(client_socket)
+          show_ip(client_socket)
+          spawn(fn -> 
+            do_recv(client_socket, 0)end)
+          ##:sys.get_state(__MODULE__)
           loop_acceptor(listen_socket)
         {:error, errno } -> 
           Logger.error errno
@@ -52,7 +60,7 @@ defmodule TcpServer do
   
     def do_recv(client_socket, length) do
       case :gen_tcp.recv(client_socket, length) do
-        {:ok, data} -> 
+        {:ok, data} ->
           data_handler(client_socket, data)
         {:error, errno} -> 
           Logger.error errno
@@ -61,7 +69,7 @@ defmodule TcpServer do
   
     def data_handler(client_socket, data) do
       cond do
-        data |> to_string |> String.trim |> String.equivalent? "bye" ->
+        data |> to_string |> String.trim |> String.equivalent?("bye") ->
           do_close(client_socket)
         true -> 
           do_send(client_socket, data)
@@ -75,15 +83,34 @@ defmodule TcpServer do
           Logger.error errno
       end
     end
+
+    def show_ip(client_socket) do
+      case :inet.peername(client_socket) do
+        {:ok, {address, port}} ->
+          spawn( fn -> IO.inspect({address, port}) end)
+        {:error, errno} ->
+          Logger.error errno
+      end
+    end
   
     def do_close(client_socket) do
       :gen_tcp.close(client_socket)
+      remove_conns(client_socket)
+    end
+
+    def close_conns() do
+      %{:active_conns => active_conns} = :sys.get_state(__MODULE__)
+      Enum.each(active_conns, fn conn -> do_close(conn) end)      
     end
 
     #clinetAPI
 
-    def add_conns() do
-      GenServer.cast(__MODULE__,{:add_conn})
+    def add_conns(client_socket) do
+      GenServer.cast(__MODULE__,{:add_conn, client_socket})
+    end
+
+    def remove_conns(client_socket) do
+      GenServer.cast(__MODULE__,{:remove_conn, client_socket})
     end
   end
   
