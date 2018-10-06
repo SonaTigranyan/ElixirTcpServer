@@ -68,24 +68,17 @@ defmodule TcpServer do
 
   defp do_recv(client_socket, length) do
     case :gen_tcp.recv(client_socket, length) do
+      {:ok, 'bye\n'} ->
+        do_close(client_socket)
+
       {:ok, data} ->
-        data_handler(client_socket, data)
+        do_send(client_socket, data)
 
       {:error, :closed} ->
         Logger.info("client closed")
 
       {:error, errno} ->
         Logger.error(errno)
-    end
-  end
-
-  defp data_handler(client_socket, data) do
-    cond do
-      data |> to_string |> String.trim() |> String.equivalent?("bye") ->
-        do_close(client_socket)
-
-      true ->
-        do_send(client_socket, data)
     end
   end
 
